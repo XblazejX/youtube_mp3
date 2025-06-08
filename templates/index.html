@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <title>YouTube ➤ Audio Downloader</title>
+</head>
+<body>
+  <h2>Wklej link do YouTube</h2>
+  <input type="text" id="url" placeholder="https://www.youtube.com/watch?v=..." size="60">
+  <button onclick="downloadAudio()">Pobierz audio</button>
+  <p id="status"></p>
+
+  <script>
+    async function downloadAudio() {
+      const url = document.getElementById('url').value.trim();
+      const status = document.getElementById('status');
+
+      if (!url) {
+        status.innerText = "⚠️ Wklej link do filmu!";
+        return;
+      }
+
+      status.innerText = "⏳ Przetwarzanie...";
+
+      try {
+        const response = await fetch('/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          status.innerText = "❌ Błąd: " + error.error;
+          return;
+        }
+
+        const blob = await response.blob();
+        const downloadUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = 'audio.webm';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+
+        status.innerText = "✅ Gotowe! Plik pobrany.";
+      } catch (err) {
+        status.innerText = "❌ Błąd: " + err.message;
+      }
+    }
+  </script>
+</body>
+</html>
