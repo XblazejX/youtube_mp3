@@ -1,41 +1,57 @@
 from flask import Flask, request, jsonify, send_file, render_template
-from pytube import YouTube
-import os
+from yt_dlp import YoutubeDL
 import uuid
+import traceback
+import os
 
 app = Flask(__name__)
-DOWNLOAD_FOLDER = "downloads"
-os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
+TEMP_DIR = "temp"
+os.makedirs(TEMP_DIR, exist_ok=True)
 
 @app.route('/')
 def index():
-    return render_template("index.html")
+    return render_template('index.html')
 
 @app.route('/download', methods=['POST'])
 def download_audio():
+    data = request.get_json(silent=True)
+    if not data or 'url' not in data:
+        return jsonify({"error": "Brak URL"}), 400
+
+    url = data['url'].strip()
+    custom_name = data.get('filename', '').strip()
+    if not url.startswith("http"):
+        return jsonify({"error": "Nieprawidłowy link"}), 400
+
     try:
-        data = request.get_json(silent=True)
-        if not data or 'url' not in data:
-            return jsonify({"error": "Brak poprawnego JSON lub URL"}), 400
+        # Unikalna lub podana nazwa
+        base_name = custom_name if custom_name else str(uuid.uuid4())
+        output_path = os.path.join(TEMP_DIR, base_name + ".webm")
 
-        url = data['url'].strip()
-        if not url.startswith('http'):
-            return jsonify({"error": "Nieprawidłowy link"}), 400
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'quiet': True,
+            'outtmpl': output_path,
+        }
 
-        yt = YouTube(url)
-        audio_stream = yt.streams.filter(only_audio=True, file_extension='webm').first()
-        if not audio_stream:
-            return jsonify({"error": "Nie znaleziono audio"}), 404
+        with YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
 
-        filename = f"{uuid.uuid4()}.webm"
-        file_path = os.path.join(DOWNLOAD_FOLDER, filename)
-        audio_stream.download(output_path=DOWNLOAD_FOLDER, filename=filename)
+        response = send_file(output_path, as_attachment=True, download_name=base_name + ".webm")
+        
+        # Usuń plik po wysłaniu (Flask wysyła plik przed zamknięciem tego bloku)
+        @response.call_on_close
+        def cleanup():
+            try:
+                os.remove(output_path)
+            except Exception:
+                pass
 
-        return send_file(file_path, as_attachment=True)
+        return response
+
     except Exception as e:
-        print("❌ Błąd backendu:", e)
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
-
 
 if __name__ == '__main__':
     app.run(debug=True)
