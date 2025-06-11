@@ -32,6 +32,7 @@ def download_audio():
             'format': 'bestaudio/best',
             'quiet': True,
             'outtmpl': output_path,
+            'cookiefile': 'cookies.txt',
         }
 
         with YoutubeDL(ydl_opts) as ydl:
