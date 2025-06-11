@@ -45,3 +45,10 @@ document.getElementById('downloadBtn').addEventListener('click', async () => {
         status.textContent = "❌ Błąd: " + e.message;
     }
 });
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+    document.getElementById('url').value = '';
+    document.getElementById('filename').value = '';
+    document.getElementById('status').textContent = '';
+    document.getElementById('url').focus();
+});
